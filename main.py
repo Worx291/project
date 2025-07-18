@@ -19,10 +19,10 @@ pygame.mixer.music.set_volume(1.0)
 pygame.mixer.music.play(-1)
 
 sound_key = pygame.mixer.Sound("assets/sound_key.mp3")
-sound_key.set_volume(1.0)
+sound_key.set_volume(0.6)
 
 sound_door = pygame.mixer.Sound("assets/sound_door.mp3")
-sound_door.set_volume(1.0)
+sound_door.set_volume(0.6)
 
 wall_img = pygame.image.load("assets/wall.png")
 wall_img = pygame.transform.scale(wall_img, (cell_size, cell_size))
@@ -32,6 +32,9 @@ key_img = pygame.transform.scale(key_img, (cell_size, cell_size))
 
 door_img = pygame.image.load("assets/door.png")
 door_img = pygame.transform.scale(door_img, (cell_size, cell_size))
+
+mark_img = pygame.image.load("assets/mark.png")
+mark_img = pygame.transform.scale(mark_img, (cell_size, cell_size))
 
 fog_img = pygame.image.load("assets/fog.png")
 fog_img = pygame.transform.scale(fog_img, (cell_size, cell_size))
@@ -93,84 +96,97 @@ def win():
 
 main_menu()
 
-maze = generate_maze(30, 40)
+for level in range(1, 11):
+    maze_height = level * 3 + 12
+    maze = generate_maze(maze_height, maze_height * 4 // 3)
+    height = len(maze)
+    width = len(maze[0])
 
-height = len(maze)
-width = len(maze[0])
-
-free_cells = []
-for y in range(height):
-    for x in range(width):
-        if maze [y][x] == 0:
-            free_cells.append((x, y))
-
-door_position = free_cells[-1]
-key_position = random.choice(free_cells[1:-1])
-player_x, player_y = free_cells[0]
-has_key = False
-
-visible_cells = set()
-visible_radius = 2
-use_fog = True
-
-clock = pygame.time.Clock()
-
-fps = 15
-
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT and player_x > 0 and maze[player_y][player_x - 1] == 0:
-                player_x -= 1
-            elif event.key == pygame.K_RIGHT and player_x < width - 1 and maze[player_y][player_x + 1] == 0:
-                player_x += 1
-            elif event.key == pygame.K_UP and player_y > 0 and maze[player_y - 1][player_x] == 0:
-                player_y -= 1
-            elif event.key == pygame.K_DOWN and player_y < height - 1 and maze[player_y + 1][player_x] == 0:
-                player_y += 1
-
-    # Заповнюємо екран фоном
-    screen.fill(background_color)
-
-    # visible_cells.clear()
-
-    for y in range(player_y - visible_radius, player_y + visible_radius + 1):
-        for x in range(player_x - visible_radius, player_x + visible_radius + 1):
-            visible_cells.add((x, y))
-
+    free_cells = []
     for y in range(height):
         for x in range(width):
-            if maze [y][x] == 1:
-                screen.blit(wall_img, (x * cell_size, y * cell_size))
+            if maze [y][x] == 0:
+                free_cells.append((x, y))
 
-    if not has_key:
-        if (player_x, player_y) == key_position:
-            has_key = True
-            sound_key.play()
-        else:
-            screen.blit(key_img, (key_position[0] * cell_size, key_position[1] * cell_size))
+    door_position = free_cells[-1]
+    key_position = random.choice(free_cells[1:-1])
+    player_x, player_y = free_cells[0]
+    has_key = False
 
-    screen.blit(door_img, (door_position[0] * cell_size, door_position[1] * cell_size))
-    screen.blit(player_img[player_id], (player_x * cell_size, player_y * cell_size))
-    player_id = (player_id + 1) % len(player_img)
+    marked_cells = set ()
 
-    if use_fog:
+    visible_cells = set()
+    visible_radius = 2 if level < 7 else 1
+    use_fog = level > 3
+
+    clock = pygame.time.Clock()
+    fps = 30
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT and player_x > 0 and maze[player_y][player_x - 1] == 0:
+                    player_x -= 1
+                elif event.key == pygame.K_RIGHT and player_x < width - 1 and maze[player_y][player_x + 1] == 0:
+                    player_x += 1
+                elif event.key == pygame.K_UP and player_y > 0 and maze[player_y - 1][player_x] == 0:
+                    player_y -= 1
+                elif event.key == pygame.K_DOWN and player_y < height - 1 and maze[player_y + 1][player_x] == 0:
+                    player_y += 1
+                elif event.key == pygame.K_SPACE:
+                    player_position = (player_x, player_y)
+                    if player_position in marked_cells:
+                        marked_cells.remove(player_position)
+                    else:
+                        marked_cells.add(player_position)
+
+        # Заповнюємо екран фоном
+        screen.fill(background_color)
+
+        if level >= 9:
+            visible_cells.clear()
+
+        for y in range(player_y - visible_radius, player_y + visible_radius + 1):
+            for x in range(player_x - visible_radius, player_x + visible_radius + 1):
+                visible_cells.add((x, y))
+
         for y in range(height):
             for x in range(width):
-                if (x, y) not in visible_cells:
-                    screen.blit(fog_img, (x * cell_size, y * cell_size))
+                if maze [y][x] == 1:
+                    screen.blit(wall_img, (x * cell_size, y * cell_size))
 
-    if has_key and (player_x, player_y) == door_position:
-        running = False
-        sound_door.play()
-    # Оновлюємо екран
-    pygame.display.flip()
+        for x, y in marked_cells:
+            screen.blit(mark_img, (x * cell_size, y * cell_size))
 
-    clock.tick(fps)
+        if not has_key:
+            if (player_x, player_y) == key_position:
+                has_key = True
+                sound_key.play()
+            else:
+                screen.blit(key_img, (key_position[0] * cell_size, key_position[1] * cell_size))
+
+        screen.blit(door_img, (door_position[0] * cell_size, door_position[1] * cell_size))
+        screen.blit(player_img[player_id], (player_x * cell_size, player_y * cell_size))
+        player_id = (player_id + 1) % len(player_img)
+
+        if use_fog:
+            for y in range(height):
+                for x in range(width):
+                    if (x, y) not in visible_cells:
+                        screen.blit(fog_img, (x * cell_size, y * cell_size))
+
+        if has_key and (player_x, player_y) == door_position:
+            running = False
+            sound_door.play()
+        # Оновлюємо екран
+        pygame.display.flip()
+
+        clock.tick(fps)
+
 
 win()
 pygame.quit()
